@@ -55,7 +55,7 @@ agent:
 
   # LLM settings for coding
   code:
-    model: anthropic.claude-3-5-sonnet-20241022-v2:0
+    model: claude-sonnet-5
     temp: 1.0
     max_tokens: 12000
 
@@ -67,7 +67,7 @@ agent:
     max_tokens: 8192
 
   vlm_feedback:
-    model: gpt-4o-2024-11-20
+    model: claude-sonnet-5
     temp: 0.5
     max_tokens: null
 

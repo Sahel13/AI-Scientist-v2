@@ -115,13 +115,11 @@ By default, the system uses the `OPENAI_API_KEY` environment variable for OpenAI
 
 By default, the system uses the `GEMINI_API_KEY` environment variable for Gemini models through OpenAI API.
 
-#### Claude Models via AWS Bedrock
+#### Claude Models via Anthropic
 
-To use Claude models provided by Amazon Bedrock, install the necessary additional packages:
-```bash
-pip install anthropic[bedrock]
-```
-Next, configure valid [AWS Credentials](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html) and the target [AWS Region](https://docs.aws.amazon.com/bedrock/latest/userguide/bedrock-regions.html) by setting the following environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION_NAME`.
+Claude models use Anthropic's first-party API. Set `ANTHROPIC_API_KEY` and use
+the `claude-sonnet-5` model identifier. The BFTS coding agent defaults to this
+model with adaptive thinking and Anthropic's `medium` effort setting.
 
 #### Semantic Scholar API (Literature Search)
 
@@ -132,11 +130,8 @@ Our code can optionally use a Semantic Scholar API Key (`S2_API_KEY`) for higher
 Ensure you provide the necessary API keys as environment variables for the models you intend to use. For example:
 ```bash
 export OPENAI_API_KEY="YOUR_OPENAI_KEY_HERE"
+export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY_HERE"
 export S2_API_KEY="YOUR_S2_KEY_HERE"
-# Set AWS credentials if using Bedrock
-# export AWS_ACCESS_KEY_ID="YOUR_AWS_ACCESS_KEY_ID"
-# export AWS_SECRET_ACCESS_KEY="YOUR_AWS_SECRET_KEY"
-# export AWS_REGION_NAME="your-aws-region"
 ```
 
 ## Generate Research Ideas
