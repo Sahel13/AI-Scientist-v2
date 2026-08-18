@@ -1,10 +1,11 @@
 import copy
 import json
-from pathlib import Path
-from typing import Type, TypeVar
 import re
+from pathlib import Path
+from typing import TypeVar
 
 import dataclasses_json
+
 from ..journal import Journal, Node
 
 
@@ -39,7 +40,7 @@ def dump_json(obj: dataclasses_json.DataClassJsonMixin, path: Path):
 G = TypeVar("G", bound=dataclasses_json.DataClassJsonMixin)
 
 
-def loads_json(s: str, cls: Type[G]) -> G:
+def loads_json(s: str, cls: type[G]) -> G:
     """Deserialize JSON to AIDE dataclasses."""
     obj_dict = json.loads(s)
     obj = cls.from_dict(obj_dict)
@@ -52,7 +53,7 @@ def loads_json(s: str, cls: Type[G]) -> G:
     return obj
 
 
-def load_json(path: Path, cls: Type[G]) -> G:
+def load_json(path: Path, cls: type[G]) -> G:
     with open(path, "r") as f:
         return loads_json(f.read(), cls)
 

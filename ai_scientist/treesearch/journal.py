@@ -1,22 +1,22 @@
 from __future__ import annotations
+
+import copy
+import json
+import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Literal, Optional, Any
-import copy
-import os
-import json
+from pathlib import Path
+from typing import Any, Literal
 
 from dataclasses_json import DataClassJsonMixin
+from rich import print
+
+from .backend import FunctionSpec, query
 from .interpreter import ExecutionResult
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import trim_long_string
-from .backend import FunctionSpec, query
-
-from rich import print
-
-import logging
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -55,8 +55,8 @@ class Node(DataClassJsonMixin):
     step: int = field(default=None, kw_only=True)  # type: ignore
     id: str = field(default_factory=lambda: uuid.uuid4().hex, kw_only=True)
     ctime: float = field(default_factory=lambda: time.time(), kw_only=True)
-    parent: Optional["Node"] = field(default=None, kw_only=True)
-    children: set["Node"] = field(default_factory=set, kw_only=True)
+    parent: Node | None = field(default=None, kw_only=True)
+    children: set[Node] = field(default_factory=set, kw_only=True)
     exp_results_dir: str = field(default=None, kw_only=True)  # type: ignore
 
     # ---- execution info ----
@@ -291,7 +291,7 @@ class Node(DataClassJsonMixin):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict, journal: Optional[Journal] = None) -> "Node":
+    def from_dict(cls, data: Dict, journal: Journal | None = None) -> Node:
         """Create a Node from a dictionary, optionally linking to journal for relationships"""
         # Remove relationship IDs from constructor data
         parent_id = data.pop("parent_id", None)
@@ -347,13 +347,13 @@ class InteractiveSession(DataClassJsonMixin):
         trace = []
         header_prefix = "## " if comment_headers else ""
         for n in self.nodes:
-            trace.append(f"\n{header_prefix}In [{n.step+1}]:\n")
+            trace.append(f"\n{header_prefix}In [{n.step + 1}]:\n")
             trace.append(n.code)
-            trace.append(f"\n{header_prefix}Out [{n.step+1}]:\n")
+            trace.append(f"\n{header_prefix}Out [{n.step + 1}]:\n")
             trace.append(n.term_out)
 
         if include_prompt and self.nodes:
-            trace.append(f"\n{header_prefix}In [{self.nodes[-1].step+2}]:\n")
+            trace.append(f"\n{header_prefix}In [{self.nodes[-1].step + 2}]:\n")
 
         return "\n".join(trace).strip()
 
@@ -406,7 +406,7 @@ class Journal:
             n for n in self.nodes if n.is_buggy is False and n.is_buggy_plots is False
         ]
 
-    def get_node_by_id(self, node_id: str) -> Optional[Node]:
+    def get_node_by_id(self, node_id: str) -> Node | None:
         """Get a node by its ID."""
         for node in self.nodes:
             if node.id == node_id:
@@ -417,7 +417,9 @@ class Journal:
         """Return a list of all metric values in the journal."""
         return [n.metric for n in self.nodes]
 
-    def get_best_node(self, only_good=True, use_val_metric_only=False, cfg=None) -> None | Node:
+    def get_best_node(
+        self, only_good=True, use_val_metric_only=False, cfg=None
+    ) -> None | Node:
         """Return the best solution found so far."""
         if only_good:
             nodes = self.good_nodes
@@ -452,13 +454,13 @@ class Journal:
         for node in nodes:
             if not node.is_seed_node:
                 candidate_info = (
-                    f"ID: {node.id}\n" f"Metric: {str(node.metric)}\n"
+                    f"ID: {node.id}\nMetric: {node.metric!s}\n"
                     if node.metric
                     else (
-                        "N/A\n" f"Training Analysis: {node.analysis}\n"
+                        f"N/A\nTraining Analysis: {node.analysis}\n"
                         if hasattr(node, "analysis")
                         else (
-                            "N/A\n" f"VLM Feedback: {node.vlm_feedback_summary}\n"
+                            f"N/A\nVLM Feedback: {node.vlm_feedback_summary}\n"
                             if hasattr(node, "vlm_feedback_summary")
                             else "N/A\n"
                         )
@@ -478,7 +480,7 @@ class Journal:
                 user_message=None,
                 func_spec=node_selection_spec,
                 model=model,
-                temperature=temperature
+                temperature=temperature,
             )
 
             # Find and return the selected node
@@ -519,7 +521,7 @@ class Journal:
         for node in self.good_nodes:
             exp_info = f"Design: {node.plan}\n  "
             exp_info += f"Results: {node.analysis}\n"
-            exp_info += f"Metric: {str(node.metric)}\n"
+            exp_info += f"Metric: {node.metric!s}\n"
             if include_code:
                 exp_info += f"Code: {node.code}\n"
             prompt["Successful Experiments"] += exp_info
@@ -542,7 +544,7 @@ class Journal:
                 "3. Specific recommendations for future experiments based on both successes and failures"
             ),
             model=model_kwargs.get("model", "gpt-4o"),
-            temperature=model_kwargs.get("temp", 0.3)
+            temperature=model_kwargs.get("temp", 0.3),
         )
 
         return summary
@@ -562,7 +564,9 @@ class Journal:
         """Convert journal to a JSON-serializable dictionary"""
         return {"nodes": [node.to_dict() for node in self.nodes]}
 
-    def save_experiment_notes(self, workspace_dir: str, stage_name: str, cfg: Any) -> None:
+    def save_experiment_notes(
+        self, workspace_dir: str, stage_name: str, cfg: Any
+    ) -> None:
         """Save experimental notes and summaries to files"""
         notes_dir = os.path.join(workspace_dir, "experiment_notes")
         os.makedirs(notes_dir, exist_ok=True)
@@ -604,8 +608,12 @@ class Journal:
         stage_summary = query(
             system_message=summary_prompt,
             user_message="Generate a comprehensive summary of the experimental findings in this stage",
-            model=cfg.agent.summary.model if cfg.agent.get("summary", None) else "gpt-4o",
-            temperature=cfg.agent.summary.temp if cfg.agent.get("summary", None) else 0.3
+            model=cfg.agent.summary.model
+            if cfg.agent.get("summary", None)
+            else "gpt-4o",
+            temperature=cfg.agent.summary.temp
+            if cfg.agent.get("summary", None)
+            else 0.3,
         )
 
         with open(os.path.join(notes_dir, f"{stage_name}_summary.txt"), "w") as f:

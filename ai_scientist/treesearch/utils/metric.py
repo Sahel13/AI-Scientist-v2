@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from functools import total_ordering
-from typing import Any
 
 import numpy as np
 from dataclasses_json import DataClassJsonMixin
@@ -58,7 +57,7 @@ class MetricValue_old(DataClassJsonMixin):
         comp = self_val > other_val
         return comp if self.maximize else not comp  # type: ignore
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         return self.value == other.value
 
     def __repr__(self) -> str:
@@ -211,7 +210,7 @@ class MetricValue(DataClassJsonMixin):
                 for metric in self.value["metric_names"]:
                     opt_dir = (
                         "↓"
-                        if "lower_is_better" in metric and metric["lower_is_better"]
+                        if metric.get("lower_is_better")
                         else "↑"
                     )
                     try:
@@ -234,7 +233,7 @@ class MetricValue(DataClassJsonMixin):
         metric_name = f"({self.name})" if self.name else ""
         return f"Metric{opt_dir}{metric_name}({self.value_npsafe:.4f})"
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Compare equality of metric values"""
         if not isinstance(other, MetricValue):
             raise NotImplementedError
@@ -246,10 +245,7 @@ class MetricValue(DataClassJsonMixin):
         # For new format, compare entire dictionaries
         if isinstance(self.value, dict) and isinstance(other.value, dict):
             # If both are new format with metric_names
-            if "metric_names" in self.value and "metric_names" in other.value:
-                return self.value == other.value
-            # If both are old format (no metric_names)
-            elif "metric_names" not in self.value and "metric_names" not in other.value:
+            if "metric_names" in self.value and "metric_names" in other.value or "metric_names" not in self.value and "metric_names" not in other.value:
                 return self.value == other.value
             # Mixed formats should not be equal
             return False

@@ -99,9 +99,9 @@ class Interpreter:
         """
         # this really needs to be a path, otherwise causes issues that don't raise exc
         self.working_dir = Path(working_dir).resolve()
-        assert (
-            self.working_dir.exists()
-        ), f"Working directory {self.working_dir} does not exist"
+        assert self.working_dir.exists(), (
+            f"Working directory {self.working_dir} does not exist"
+        )
         self.timeout = timeout
         self.format_tb_ipython = format_tb_ipython
         self.agent_file_name = agent_file_name

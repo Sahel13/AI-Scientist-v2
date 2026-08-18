@@ -5,28 +5,23 @@ import os.path as osp
 import re
 import shutil
 import subprocess
+import tempfile
 import traceback
 import unicodedata
-import uuid
-import tempfile
 
 from ai_scientist.llm import (
-    get_response_from_llm,
-    extract_json_between_markers,
-    create_client,
     AVAILABLE_LLMS,
+    create_client,
+    extract_json_between_markers,
+    get_response_from_llm,
 )
-
-from ai_scientist.utils.token_tracker import track_token_usage
-
-from ai_scientist.tools.semantic_scholar import search_for_papers
-
 from ai_scientist.perform_vlm_review import (
+    detect_duplicate_figures,
     generate_vlm_img_review,
     perform_imgs_cap_ref_review,
     perform_imgs_cap_ref_review_selection,
-    detect_duplicate_figures,
 )
+from ai_scientist.tools.semantic_scholar import search_for_papers
 from ai_scientist.vlm import create_client as create_vlm_client
 
 
@@ -501,9 +496,9 @@ This JSON will be automatically parsed, so ensure the format is precise."""
                 x_str = x.strip().strip('"').strip("'")
                 if x_str:
                     selected_indices.append(int(x_str))
-            assert all(
-                [0 <= i < len(papers) for i in selected_indices]
-            ), "Invalid paper index"
+            assert all([0 <= i < len(papers) for i in selected_indices]), (
+                "Invalid paper index"
+            )
             bibtexs = [papers[i]["citationStyles"]["bibtex"] for i in selected_indices]
 
             cleaned_bibtexs = []
@@ -592,7 +587,7 @@ Ensure you are always writing good compilable LaTeX code. Common mistakes that s
 - Do not hallucinate new citations or any results not in the logs.
 
 Ensure proper citation usage:
-- Always include references within \begin{{filecontents}}{{references.bib}} ... \end{{filecontents}}, even if they haven't changed from the previous round.
+- Always include references within \begin{{filecontents}}{{references.bib}} ... \\end{{filecontents}}, even if they haven't changed from the previous round.
 - Use citations from the provided references.bib content.
 - Each section (especially Related Work) should have multiple citations.
 
@@ -1025,10 +1020,10 @@ def perform_writeup(
 
             # Save PDF with reflection trial number
             reflection_pdf = osp.join(
-                base_folder, f"{osp.basename(base_folder)}_reflection{i+1}.pdf"
+                base_folder, f"{osp.basename(base_folder)}_reflection{i + 1}.pdf"
             )
             # Compile current version before reflection
-            print(f"[green]Compiling PDF for reflection {i+1}...[/green]")
+            print(f"[green]Compiling PDF for reflection {i + 1}...[/green]")
             compile_latex(latex_folder, reflection_pdf)
 
             review_img_cap_ref = perform_imgs_cap_ref_review(
@@ -1078,7 +1073,7 @@ Return the entire file in full, with no unfilled placeholders!
 This must be an acceptable complete LaTeX writeup.
 Do not hallucinate any details!
 Ensure proper citation usage:
-- Always include references within \begin{{filecontents}}{{references.bib}} ... \end{{filecontents}}, even if they haven't changed from the previous round.
+- Always include references within \begin{{filecontents}}{{references.bib}} ... \\end{{filecontents}}, even if they haven't changed from the previous round.
 - Use citations from the provided references.bib content.
 """
 
@@ -1113,10 +1108,10 @@ Ensure proper citation usage:
 
                     compile_latex(latex_folder, reflection_pdf)
                 else:
-                    print(f"No changes in reflection step {i+1}.")
+                    print(f"No changes in reflection step {i + 1}.")
                     break
             else:
-                print(f"No valid LaTeX code block found in reflection step {i+1}.")
+                print(f"No valid LaTeX code block found in reflection step {i + 1}.")
                 break
             # Get new reflection_page_info
             reflection_page_info = get_reflection_page_info(reflection_pdf, page_limit)
@@ -1180,10 +1175,10 @@ If you believe you are done with reflection, simply say: "I am done"."""
 
                     compile_latex(latex_folder, reflection_pdf)
                 else:
-                    print(f"No changes in reflection step {i+1}.")
+                    print(f"No changes in reflection step {i + 1}.")
                     break
             else:
-                print(f"No valid LaTeX code block found in reflection step {i+1}.")
+                print(f"No valid LaTeX code block found in reflection step {i + 1}.")
                 break
 
         # Final reflection on page limit
@@ -1207,9 +1202,9 @@ USE MINIMAL EDITS TO OPTIMIZE THE PAGE LIMIT USAGE."""
             base_folder, f"{osp.basename(base_folder)}_reflection_final_page_limit.pdf"
         )
         # Compile current version before reflection
-        print(f"[green]Compiling PDF for reflection final page limit...[/green]")
+        print("[green]Compiling PDF for reflection final page limit...[/green]")
 
-        print(f"reflection step {i+1}")
+        print(f"reflection step {i + 1}")
 
         reflection_code_match = re.search(
             r"```latex(.*?)```", reflection_response, re.DOTALL
@@ -1232,7 +1227,7 @@ USE MINIMAL EDITS TO OPTIMIZE THE PAGE LIMIT USAGE."""
 
                 compile_latex(latex_folder, reflection_pdf)
             else:
-                print(f"No changes in reflection page step.")
+                print("No changes in reflection page step.")
 
         return osp.exists(reflection_pdf)
 

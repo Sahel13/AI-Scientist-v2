@@ -1,31 +1,40 @@
-import os.path as osp
-import json
 import argparse
-import shutil
-import torch
+import json
 import os
+import os.path as osp
 import re
+import shutil
 import sys
-from datetime import datetime
-from ai_scientist.llm import create_client
-
 from contextlib import contextmanager
+from datetime import datetime
+
+import torch
+
+from ai_scientist.llm import create_client
+from ai_scientist.perform_icbinb_writeup import (
+    gather_citations,
+)
+from ai_scientist.perform_icbinb_writeup import (
+    perform_writeup as perform_icbinb_writeup,
+)
+from ai_scientist.perform_llm_review import load_paper, perform_review
+from ai_scientist.perform_plotting import aggregate_plots
+from ai_scientist.perform_vlm_review import perform_imgs_cap_ref_review
+from ai_scientist.perform_writeup import perform_writeup
+from ai_scientist.treesearch.bfts_utils import (
+    edit_bfts_config_file,
+    idea_to_markdown,
+)
 from ai_scientist.treesearch.perform_experiments_bfts_with_agentmanager import (
     perform_experiments_bfts,
 )
-from ai_scientist.treesearch.bfts_utils import (
-    idea_to_markdown,
-    edit_bfts_config_file,
-)
-from ai_scientist.perform_plotting import aggregate_plots
-from ai_scientist.perform_writeup import perform_writeup
-from ai_scientist.perform_icbinb_writeup import (
-    perform_writeup as perform_icbinb_writeup,
-    gather_citations,
-)
-from ai_scientist.perform_llm_review import perform_review, load_paper
-from ai_scientist.perform_vlm_review import perform_imgs_cap_ref_review
 from ai_scientist.utils.token_tracker import token_tracker
+
+
+def default_bfts_config() -> str:
+    """Prefer a private local override without changing the shared default."""
+    private_config = "bfts_config.private.yaml"
+    return private_config if osp.isfile(private_config) else "bfts_config.yaml"
 
 
 def print_time():
@@ -53,6 +62,15 @@ def parse_arguments():
         type=str,
         default="ideas/i_cant_believe_its_not_better.json",
         help="Path to a JSON file containing pregenerated ideas",
+    )
+    parser.add_argument(
+        "--bfts-config",
+        type=str,
+        default=default_bfts_config(),
+        help=(
+            "Base BFTS configuration file; defaults to bfts_config.private.yaml "
+            "when present, otherwise bfts_config.yaml."
+        ),
     )
     parser.add_argument(
         "--load_code",
@@ -246,7 +264,7 @@ if __name__ == "__main__":
     with open(idea_path_json, "w") as f:
         json.dump(ideas[args.idea_idx], f, indent=4)
 
-    config_path = "bfts_config.yaml"
+    config_path = args.bfts_config
     idea_config_path = edit_bfts_config_file(
         config_path,
         idea_dir,
@@ -276,7 +294,7 @@ if __name__ == "__main__":
             small_model=args.model_citation,
         )
         for attempt in range(args.writeup_retries):
-            print(f"Writeup attempt {attempt+1} of {args.writeup_retries}")
+            print(f"Writeup attempt {attempt + 1} of {args.writeup_retries}")
             if args.writeup_type == "normal":
                 writeup_success = perform_writeup(
                     base_folder=idea_dir,
@@ -320,8 +338,9 @@ if __name__ == "__main__":
 
     print("Start cleaning up processes")
     # Kill all mp and torch processes associated with this experiment
-    import psutil
     import signal
+
+    import psutil
 
     # Get the current process and all its children
     current_process = psutil.Process()

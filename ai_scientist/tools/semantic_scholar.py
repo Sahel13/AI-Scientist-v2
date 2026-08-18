@@ -1,15 +1,14 @@
 import os
-import requests
 import time
 import warnings
-from typing import Dict, List, Optional, Union
 
 import backoff
+import requests
 
 from ai_scientist.tools.base_tool import BaseTool
 
 
-def on_backoff(details: Dict) -> None:
+def on_backoff(details: dict) -> None:
     print(
         f"Backing off {details['wait']:0.1f} seconds after {details['tries']} tries "
         f"calling function {details['target'].__name__} at {time.strftime('%X')}"
@@ -42,7 +41,7 @@ class SemanticScholarSearchTool(BaseTool):
                 "Set the S2_API_KEY environment variable for higher limits."
             )
 
-    def use_tool(self, query: str) -> Optional[str]:
+    def use_tool(self, query: str) -> str | None:
         papers = self.search_for_papers(query)
         if papers:
             return self.format_papers(papers)
@@ -54,14 +53,14 @@ class SemanticScholarSearchTool(BaseTool):
         (requests.exceptions.HTTPError, requests.exceptions.ConnectionError),
         on_backoff=on_backoff,
     )
-    def search_for_papers(self, query: str) -> Optional[List[Dict]]:
+    def search_for_papers(self, query: str) -> list[dict] | None:
         if not query:
             return None
-        
+
         headers = {}
         if self.S2_API_KEY:
             headers["X-API-KEY"] = self.S2_API_KEY
-        
+
         rsp = requests.get(
             "https://api.semanticscholar.org/graph/v1/paper/search",
             headers=headers,
@@ -84,7 +83,7 @@ class SemanticScholarSearchTool(BaseTool):
         papers.sort(key=lambda x: x.get("citationCount", 0), reverse=True)
         return papers
 
-    def format_papers(self, papers: List[Dict]) -> str:
+    def format_papers(self, papers: list[dict]) -> str:
         paper_strings = []
         for i, paper in enumerate(papers):
             authors = ", ".join(
@@ -101,7 +100,7 @@ Abstract: {paper.get("abstract", "No abstract available.")}"""
 @backoff.on_exception(
     backoff.expo, requests.exceptions.HTTPError, on_backoff=on_backoff
 )
-def search_for_papers(query, result_limit=10) -> Union[None, List[Dict]]:
+def search_for_papers(query, result_limit=10) -> None | list[dict]:
     S2_API_KEY = os.getenv("S2_API_KEY")
     headers = {}
     if not S2_API_KEY:
@@ -110,10 +109,10 @@ def search_for_papers(query, result_limit=10) -> Union[None, List[Dict]]:
         )
     else:
         headers["X-API-KEY"] = S2_API_KEY
-    
+
     if not query:
         return None
-    
+
     rsp = requests.get(
         "https://api.semanticscholar.org/graph/v1/paper/search",
         headers=headers,

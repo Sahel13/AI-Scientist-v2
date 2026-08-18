@@ -6,9 +6,9 @@ from pathlib import Path
 
 import numpy as np
 from igraph import Graph
-from ..journal import Journal
-
 from rich import print
+
+from ..journal import Journal
 
 
 def get_edges(journal: Journal):

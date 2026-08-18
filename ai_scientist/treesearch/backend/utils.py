@@ -8,9 +8,10 @@ FunctionCallType = dict
 OutputType = str | FunctionCallType
 
 
-import backoff
 import logging
-from typing import Callable
+from collections.abc import Callable
+
+import backoff
 
 logger = logging.getLogger("ai-scientist")
 
@@ -98,7 +99,7 @@ def compile_prompt_to_md(prompt: PromptType, _header_depth: int = 1) -> str:
         logger.error("Error in compile_prompt_to_md:")
         logger.error(f"Input type: {type(prompt)}")
         logger.error(f"Input content: {prompt}")
-        logger.error(f"Error: {str(e)}")
+        logger.error(f"Error: {e!s}")
         raise
 
 

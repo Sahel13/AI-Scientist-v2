@@ -1,0 +1,19 @@
+#!/bin/bash
+# Copy this file and add the #SBATCH resource directives required by your
+# cluster (partition, account, GPUs, memory, and time limit).
+#SBATCH --job-name=ai-scientist
+#SBATCH --output=slurm-%j.out
+#SBATCH --error=slurm-%j.err
+
+# The adapter submits this template with --chdir=$AI_SCIENTIST_REMOTE_WORKDIR,
+# so these relative log paths are collected with the experiment workspace.
+
+set -euo pipefail
+export PYTHONUNBUFFERED=1
+
+cd "${AI_SCIENTIST_REMOTE_WORKDIR:?AI_SCIENTIST_REMOTE_WORKDIR must be set}"
+
+# Activate the environment available on your cluster before running the job.
+# source /path/to/your/environment/bin/activate
+
+python runfile.py

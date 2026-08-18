@@ -1,11 +1,13 @@
 import base64
-from typing import Any
-import re
 import json
+import os
+import re
+from typing import Any
+
 import backoff
 import openai
-import os
 from PIL import Image
+
 from ai_scientist.utils.token_tracker import track_token_usage
 
 MAX_NUM_TOKENS = 4096
@@ -16,18 +18,13 @@ AVAILABLE_VLMS = [
     "gpt-4o-2024-11-20",
     "gpt-4o-mini-2024-07-18",
     "o3-mini",
-
     # Ollama models
-
     # llama4
     "ollama/llama4:16x17b",
-
     # mistral
     "ollama/mistral-small3.2:24b",
-
     # qwen
     "ollama/qwen2.5vl:32b",
-
     "ollama/z-uo/qwen2.5vl_tools:32b",
 ]
 
@@ -184,7 +181,7 @@ def get_response_from_vlm(
         print()
         print("*" * 20 + " VLM START " + "*" * 20)
         for j, msg in enumerate(new_msg_history):
-            print(f'{j}, {msg["role"]}: {msg["content"]}')
+            print(f"{j}, {msg['role']}: {msg['content']}")
         print(content)
         print("*" * 21 + " VLM END " + "*" * 21)
         print()
@@ -207,7 +204,7 @@ def create_client(model: str) -> tuple[Any, str]:
         print(f"Using Ollama API with model {model}.")
         return openai.OpenAI(
             api_key=os.environ.get("OLLAMA_API_KEY", ""),
-            base_url="http://localhost:11434/v1"
+            base_url="http://localhost:11434/v1",
         ), model
     else:
         raise ValueError(f"Model {model} not supported.")
@@ -340,7 +337,7 @@ def get_batch_responses_from_vlm(
         print()
         print("*" * 20 + " VLM START " + "*" * 20)
         for j, msg in enumerate(new_msg_histories[0]):
-            print(f'{j}, {msg["role"]}: {msg["content"]}')
+            print(f"{j}, {msg['role']}: {msg['content']}")
         print(contents[0])
         print("*" * 21 + " VLM END " + "*" * 21)
         print()
