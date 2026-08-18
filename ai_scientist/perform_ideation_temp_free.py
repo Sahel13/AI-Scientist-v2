@@ -2,10 +2,9 @@ import argparse
 import json
 import os.path as osp
 import re
-import traceback
-from typing import Any, Dict, List
-
 import sys
+import traceback
+from typing import Any
 
 sys.path.append(osp.join(osp.dirname(__file__), ".."))
 from ai_scientist.llm import (
@@ -13,9 +12,8 @@ from ai_scientist.llm import (
     create_client,
     get_response_from_llm,
 )
-
-from ai_scientist.tools.semantic_scholar import SemanticScholarSearchTool
 from ai_scientist.tools.base_tool import BaseTool
+from ai_scientist.tools.semantic_scholar import SemanticScholarSearchTool
 
 # Create tool instances
 semantic_scholar_tool = SemanticScholarSearchTool()
@@ -133,7 +131,7 @@ def generate_temp_free_idea(
     max_num_generations: int = 20,
     num_reflections: int = 5,
     reload_ideas: bool = True,
-) -> List[Dict]:
+) -> list[dict]:
     idea_str_archive = []
     # load ideas from file
     if reload_ideas and osp.exists(idea_fname):
@@ -221,7 +219,7 @@ def generate_temp_free_idea(
                             result = tool.use_tool(**arguments_json)
                             last_tool_results = result
                         except Exception as e:
-                            last_tool_results = f"Error using tool {action}: {str(e)}"
+                            last_tool_results = f"Error using tool {action}: {e!s}"
                     elif action == "FinalizeIdea":
                         # Parse arguments
                         try:
@@ -242,7 +240,7 @@ def generate_temp_free_idea(
                             "Invalid action. Please specify one of the available tools."
                         )
                         print(f"Available actions are: {tool_names_str}")
-                except Exception as e:
+                except Exception:
                     print(
                         f"Failed to parse LLM response. Response text:\n{response_text}"
                     )
@@ -252,7 +250,7 @@ def generate_temp_free_idea(
             if idea_finalized:
                 continue  # Move to the next idea
 
-        except Exception as e:
+        except Exception:
             print("Failed to generate proposal:")
             traceback.print_exc()
             continue

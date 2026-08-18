@@ -1,19 +1,17 @@
-from typing import List, Optional, Dict, Callable, Any, Tuple
-import pickle
-from dataclasses import dataclass
-from enum import Enum, auto
-from pathlib import Path
-import logging
-from .parallel_agent import ParallelAgent
-from .journal import Journal, Node
 import copy
-import re
-from .backend import query, FunctionSpec
 import json
-from rich import print
-from .utils.serialize import parse_markdown_to_dict
-from .utils.metric import WorstMetricValue
+import logging
+import pickle
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
+from rich import print
+
+from .backend import FunctionSpec, query
+from .journal import Journal, Node
+from .parallel_agent import ParallelAgent
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +102,7 @@ stage_completion_eval_spec = FunctionSpec(
 class Stage:
     name: str
     description: str
-    goals: List[str]
+    goals: list[str]
     max_iterations: int
     num_drafts: int
     stage_number: int
@@ -117,7 +115,7 @@ class StageTransition:
     from_stage: str
     to_stage: str
     reason: str
-    config_adjustments: Dict[str, Any]
+    config_adjustments: dict[str, Any]
 
 
 class AgentManager:
@@ -135,18 +133,18 @@ class AgentManager:
         self.cfg = cfg
         self.workspace_dir = workspace_dir
         self.current_stage_number = 0
-        self.stages: List[Stage] = []
-        self.current_stage: Optional[Stage] = None
-        self.journals: Dict[str, Journal] = {}
-        self.stage_history: List[StageTransition] = []
-        self.completed_stages: List[str] = []
-        self.main_stage_dict: Dict[int, str] = {
+        self.stages: list[Stage] = []
+        self.current_stage: Stage | None = None
+        self.journals: dict[str, Journal] = {}
+        self.stage_history: list[StageTransition] = []
+        self.completed_stages: list[str] = []
+        self.main_stage_dict: dict[int, str] = {
             1: "initial_implementation",
             2: "baseline_tuning",
             3: "creative_research",
             4: "ablation_studies",
         }
-        self.main_stage_goals: Dict[int, str] = {
+        self.main_stage_goals: dict[int, str] = {
             1: """
                 - Focus on getting basic working implementation
                 - Use a simple dataset
@@ -535,7 +533,7 @@ Your research idea:\n\n
         print(f"[green]Stage {stage.name} not completed[/green]")
         return False, "stage not completed"
 
-    def _get_best_implementation(self, stage_name: str) -> Optional[Node]:
+    def _get_best_implementation(self, stage_name: str) -> Node | None:
         """Get the best implementation from a completed stage"""
         if stage_name not in self.journals:
             return None
@@ -572,16 +570,16 @@ Your research idea:\n\n
         {main_stage_goal}
 
         Current Progress:
-        - Total attempts: {metrics['total_nodes']}
-        - Successful implementations: {metrics['good_nodes']}
-        - Best performance: {metrics['best_metric']['value'] if metrics['best_metric'] else 'N/A'}
-        - Convergence status: {progress['convergence_status']}
+        - Total attempts: {metrics["total_nodes"]}
+        - Successful implementations: {metrics["good_nodes"]}
+        - Best performance: {metrics["best_metric"]["value"] if metrics["best_metric"] else "N/A"}
+        - Convergence status: {progress["convergence_status"]}
 
         Current Issues:
         {json.dumps(issues, indent=2)}
 
         Recent Changes:
-        {json.dumps(progress['recent_changes'], indent=2)}
+        {json.dumps(progress["recent_changes"], indent=2)}
 
         Generate specific, actionable sub-stage goals that:
         1. Address current issues and limitations
@@ -622,7 +620,7 @@ Your research idea:\n\n
 
             # Format the response into a structured goal string
             goal_str = f"""
-            {response['goals']}
+            {response["goals"]}
             """
 
             return goal_str.strip(), response["sub_stage_name"]
@@ -630,14 +628,14 @@ Your research idea:\n\n
         except Exception as e:
             logger.error(f"Error generating sub-stage goals: {e}")
             # Provide fallback goals if LLM fails
-            return f"""
+            return """
             Sub-stage Goals:
             Continue progress on main stage objectives while addressing current issues.
             """
 
     def _create_next_substage(
         self, current_substage: Stage, journal: Journal, substage_feedback: str
-    ) -> Optional[Stage]:
+    ) -> Stage | None:
         """Create the next sub-stage. Ask LLM to come up with the next sub-stage name and goals
         based on what has been done so far.
         """
@@ -663,7 +661,7 @@ Your research idea:\n\n
 
     def _create_next_main_stage(
         self, current_substage: Stage, journal: Journal
-    ) -> Optional[Stage]:
+    ) -> Stage | None:
         (
             main_stage_num,
             main_stage_name,
@@ -677,7 +675,7 @@ Your research idea:\n\n
         sub_stage_name = "first_attempt"
         num_drafts = 0
         stage_number = current_substage.stage_number + 1
-        description = f"first_attempt"
+        description = "first_attempt"
         main_stage_goal = self.main_stage_goals[main_stage_num + 1]
 
         return Stage(
@@ -830,8 +828,8 @@ Your research idea:\n\n
 
     def _create_stage_analysis_prompt(
         self,
-        previous_stages: List[Stage],
-        previous_results: Optional[Dict[str, Any]],
+        previous_stages: list[Stage],
+        previous_results: dict[str, Any] | None,
         is_initial_stage: bool,
     ) -> str:
         """Create detailed prompt to determine next stage configuration"""
@@ -842,7 +840,7 @@ Your research idea:\n\n
 
         if previous_stages:
             stage_history = "\n".join(
-                f"Stage {i+1}: {stage.name} - {stage.description}"
+                f"Stage {i + 1}: {stage.name} - {stage.description}"
                 for i, stage in enumerate(previous_stages)
             )
             prompt_parts.append(f"Previous Stages:\n{stage_history}")
@@ -885,7 +883,7 @@ Your research idea:\n\n
                 / "logs"
                 / run_name
                 / "notes"
-                / f"stage_{stage_number-1}_to_{stage_number}"
+                / f"stage_{stage_number - 1}_to_{stage_number}"
             )
             notes_dir.mkdir(parents=True, exist_ok=True)
 
@@ -924,7 +922,7 @@ Your research idea:\n\n
 
         return "\n\n".join(prompt_parts)
 
-    def parse_stage_names(self, stage_name: str) -> Tuple[int, str, int, str]:
+    def parse_stage_names(self, stage_name: str) -> tuple[int, str, int, str]:
         """Parse stage name into main stage number, main stage name,
         sub-stage number, and sub-stage name"""
         # Find the two numbers in the current stage name
@@ -941,7 +939,7 @@ Your research idea:\n\n
         return main_stage, main_stage_name, sub_stage_num, sub_stage_name
 
     def _save_stage_summary(
-        self, current_results: Dict[str, Any], evaluation: Dict[str, Any]
+        self, current_results: dict[str, Any], evaluation: dict[str, Any]
     ):
         """Save comprehensive stage completion summary"""
         base_dir = Path(self.workspace_dir).parent.parent
@@ -975,7 +973,7 @@ Your research idea:\n\n
         with open(notes_dir / "stage_completion_summary.json", "w") as f:
             json.dump(completion_data, f, indent=2)
 
-    def _get_response(self, prompt: str) -> Dict[str, Any]:
+    def _get_response(self, prompt: str) -> dict[str, Any]:
         """Get structured response from LLM for stage configuration.
 
         Args:
@@ -1038,7 +1036,7 @@ Your research idea:\n\n
                 "success_metric_threshold": None,
             }
 
-    def _gather_stage_metrics(self, journal: Journal) -> Dict[str, Any]:
+    def _gather_stage_metrics(self, journal: Journal) -> dict[str, Any]:
         """Gather detailed metrics and analysis from the stage's nodes"""
         metrics = {
             "total_nodes": len(journal.nodes),
@@ -1081,7 +1079,7 @@ Your research idea:\n\n
 
         return metrics
 
-    def _identify_issues(self, journal: Journal) -> List[str]:
+    def _identify_issues(self, journal: Journal) -> list[str]:
         """Identify systemic issues and challenges from the current stage's results"""
         issues = []
 
@@ -1124,7 +1122,7 @@ Your research idea:\n\n
 
         return issues
 
-    def _analyze_progress(self, journal: Journal) -> Dict[str, Any]:
+    def _analyze_progress(self, journal: Journal) -> dict[str, Any]:
         """Analyze progress and convergence in the current stage"""
         progress = {
             "iterations_completed": len(journal.nodes),
@@ -1149,8 +1147,8 @@ Your research idea:\n\n
         return progress
 
     def _evaluate_stage_progression(
-        self, current_stage: Stage, previous_results: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, current_stage: Stage, previous_results: dict[str, Any]
+    ) -> dict[str, Any]:
         """Evaluate whether experiment is ready for next stage"""
 
         eval_prompt = f"""
@@ -1160,16 +1158,16 @@ Your research idea:\n\n
         Current Stage Information:
         - Name: {current_stage.name}
         - Description: {current_stage.description}
-        - Goals: {', '.join(current_stage.goals) if isinstance(current_stage.goals, list) else current_stage.goals}
+        - Goals: {", ".join(current_stage.goals) if isinstance(current_stage.goals, list) else current_stage.goals}
 
         Performance Metrics:
-        {json.dumps(previous_results.get('metrics', {}), indent=2)}
+        {json.dumps(previous_results.get("metrics", {}), indent=2)}
 
         Identified Issues:
-        {json.dumps(previous_results.get('issues', []), indent=2)}
+        {json.dumps(previous_results.get("issues", []), indent=2)}
 
         Progress Analysis:
-        {json.dumps(previous_results.get('progress', {}), indent=2)}
+        {json.dumps(previous_results.get("progress", {}), indent=2)}
 
         Expected Stage Progression:
         1. Initial Implementation: Focus on basic working implementation

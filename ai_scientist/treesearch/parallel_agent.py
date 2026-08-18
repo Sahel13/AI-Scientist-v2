@@ -1,27 +1,23 @@
-from concurrent.futures import ProcessPoolExecutor
-from typing import List, Optional, Set, Any, Callable, cast, Dict, Tuple
+import base64
+import logging
+import os
+import pickle
 import random
 import subprocess
-import os
-from queue import Queue
-import logging
+from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+from typing import Any, cast
+
 import humanize
-from .backend import FunctionSpec, compile_prompt_to_md, query
+from rich import print
+
+from .backend import FunctionSpec, query
 from .interpreter import ExecutionResult
 from .journal import Journal, Node
-from .utils import data_preview
 from .utils.config import Config
 from .utils.metric import MetricValue, WorstMetricValue
 from .utils.response import extract_code, extract_text_up_to_code, wrap_code
-import copy
-import pickle
-from dataclasses import asdict
-from omegaconf import OmegaConf
-
-from rich import print
-from pathlib import Path
-import base64
-import sys
 
 logger = logging.getLogger("ai-scientist")
 
@@ -34,13 +30,13 @@ def _safe_pickle_test(obj, name="object"):
         pickle.dumps(obj)
         return True
     except Exception as e:
-        logger.error(f"Cannot pickle {name}: {str(e)}")
+        logger.error(f"Cannot pickle {name}: {e!s}")
         return False
 
 
 def _parse_keyword_prefix_response(
     response: str, keyword_prefix1: str, keyword_prefix2: str
-) -> Tuple[Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None]:
     """Parse the response into name and description based on keyword prefix"""
     try:
         # Split response into lines and clean up
@@ -73,7 +69,7 @@ def _parse_keyword_prefix_response(
         return name, description
 
     except Exception as e:
-        logger.error(f"Error parsing response: {str(e)}")
+        logger.error(f"Error parsing response: {e!s}")
         logger.debug(f"Raw response: {response}")
         return None, None
 
@@ -832,11 +828,11 @@ class MinimalAgent:
 
         return code
 
-    def _determine_datasets_successfully_tested(self, node: Node) -> List[str]:
+    def _determine_datasets_successfully_tested(self, node: Node) -> list[str]:
         """Determine which datasets are successfully tested based on VLM feedback"""
         plot_analyses = ""
         for i, plot_analysis in enumerate(node.plot_analyses):
-            plot_analyses += f"plot {i+1}: {plot_analysis['analysis']}\n"
+            plot_analyses += f"plot {i + 1}: {plot_analysis['analysis']}\n"
 
         determine_prompt = {
             "Introduction": "You are an AI researcher analyzing experiment results. Based on the plot analyses and feedback, determine which datasets are successfully tested. Return reasoning and the dataset names that are successfully executed, or an empty string if no datasets are successfully executed.",
@@ -974,7 +970,7 @@ class MinimalAgent:
 
             except Exception as e:
                 logger.error(
-                    f"Error in plot selection: {str(e)}; falling back to first 10 plots"
+                    f"Error in plot selection: {e!s}; falling back to first 10 plots"
                 )
                 # Fallback to using first 10 plots
                 selected_plots = node.plot_paths[:10]
@@ -1093,8 +1089,8 @@ class GPUManager:
 
     def __init__(self, num_gpus: int):
         self.num_gpus = num_gpus
-        self.available_gpus: Set[int] = set(range(num_gpus))
-        self.gpu_assignments: Dict[str, int] = {}  # process_id -> gpu_id
+        self.available_gpus: set[int] = set(range(num_gpus))
+        self.gpu_assignments: dict[str, int] = {}  # process_id -> gpu_id
 
     def acquire_gpu(self, process_id: str) -> int:
         """Assigns a GPU to a process"""
@@ -1180,12 +1176,15 @@ class ParallelAgent:
             logger.info(f"Limiting workers to {self.num_workers} to match GPU count")
 
         self.timeout = self.cfg.exec.timeout
-        # Slurm execution needs to poll once more and transfer results after
-        # its execution deadline.  Keep that cleanup within the worker's
-        # future deadline instead of discarding a worker that is finishing.
+        # The Slurm job enforces the experiment timeout inside the worker.
+        # Reserve a separate, configurable budget for final polling, copying
+        # results, and the local metric/plot/VLM post-processing that follows.
         if self.cfg.exec.backend == "slurm":
             assert self.cfg.exec.slurm is not None
-            self.timeout += self.cfg.exec.slurm.poll_seconds
+            self.timeout += (
+                self.cfg.exec.slurm.poll_seconds
+                + self.cfg.exec.slurm.postprocess_timeout
+            )
         self.executor = ProcessPoolExecutor(max_workers=self.num_workers)
         self._is_shutdown = False
         # Define the metric once at initialization
@@ -1264,7 +1263,7 @@ class ParallelAgent:
             is_seed_agg_node=True,
         )
 
-    def _run_multi_seed_evaluation(self, node: Node) -> List[Node]:
+    def _run_multi_seed_evaluation(self, node: Node) -> list[Node]:
         """Run multiple seeds of the same node to get statistical metrics.
         Returns a list of nodes with different random seeds."""
 
@@ -1331,11 +1330,11 @@ class ParallelAgent:
                 seed_nodes.append(self.journal.get_node_by_id(result_node.id))
                 print("Added result node to journal")
             except Exception as e:
-                logger.error(f"Error in multi-seed evaluation: {str(e)}")
+                logger.error(f"Error in multi-seed evaluation: {e!s}")
 
         return seed_nodes
 
-    def _run_plot_aggregation(self, node: Node, seed_nodes: List[Node]) -> Node:
+    def _run_plot_aggregation(self, node: Node, seed_nodes: list[Node]) -> Node:
         """Generate an aggregation node for seed evaluation results"""
         if seed_nodes:
             try:
@@ -1410,7 +1409,7 @@ class ParallelAgent:
                         process_interpreter.cleanup_session()
 
             except Exception as e:
-                print(f"Error in seed result aggregation: {str(e)}")
+                print(f"Error in seed result aggregation: {e!s}")
 
     @staticmethod
     def _process_node_wrapper(
@@ -1429,11 +1428,11 @@ class ParallelAgent:
         seed_eval=False,
     ):
         """Wrapper function that creates a fresh environment for each process"""
-        from .interpreter import Interpreter
-        from .journal import Node, Journal
-        from copy import deepcopy
-        import os
         import multiprocessing
+        import os
+
+        from .interpreter import Interpreter
+        from .journal import Node
 
         print("Starting _process_node_wrapper")
 
@@ -1674,7 +1673,7 @@ class ParallelAgent:
 
                 except Exception as e:
                     logger.error(
-                        f"Error parsing metrics for node {child_node.id}: {str(e)}"
+                        f"Error parsing metrics for node {child_node.id}: {e!s}"
                     )
                     child_node.metric = WorstMetricValue()
                     child_node.is_buggy = True
@@ -1787,7 +1786,7 @@ class ParallelAgent:
                             logger.debug(f"Plot web path: {web_path}")
                 except Exception as e:
                     logger.error(
-                        f"Error generating plots for node {child_node.id}: {str(e)}"
+                        f"Error generating plots for node {child_node.id}: {e!s}"
                     )
 
                 if child_node.plots:
@@ -1798,7 +1797,7 @@ class ParallelAgent:
                         )
                     except Exception as e:
                         logger.error(
-                            f"Error analyzing plots for node {child_node.id}: {str(e)}"
+                            f"Error analyzing plots for node {child_node.id}: {e!s}"
                         )
 
             # Convert result node to dict
@@ -1810,13 +1809,13 @@ class ParallelAgent:
             return result_data
 
         except Exception as e:
-            print(f"Worker process error: {str(e)}")
+            print(f"Worker process error: {e!s}")
             import traceback
 
             traceback.print_exc()
             raise
 
-    def _generate_hyperparam_tuning_idea(self) -> Optional[HyperparamTuningIdea]:
+    def _generate_hyperparam_tuning_idea(self) -> HyperparamTuningIdea | None:
         """Generate the next hyperparam tuning idea based on what's been done.
         This is minaly for Stage 2 (baseline tuning).
         """
@@ -1878,7 +1877,7 @@ class ParallelAgent:
             name="increase learning rate", description="increase learning rate"
         )
 
-    def _generate_ablation_idea(self) -> Optional[AblationIdea]:
+    def _generate_ablation_idea(self) -> AblationIdea | None:
         """Generate the next ablation idea based on what's been done"""
 
         # Prepare context of what's been tried
@@ -1939,7 +1938,7 @@ class ParallelAgent:
         )
         return AblationIdea(name="add one more layer", description="add one more layer")
 
-    def _get_leaves(self, node: Node) -> List[Node]:
+    def _get_leaves(self, node: Node) -> list[Node]:
         """Get all leaf nodes in the subtree rooted at node."""
         if not node.children:
             return [node]
@@ -1949,7 +1948,7 @@ class ParallelAgent:
             leaves.extend(self._get_leaves(child))
         return leaves
 
-    def _select_parallel_nodes(self) -> List[Optional[Node]]:
+    def _select_parallel_nodes(self) -> list[Node | None]:
         """Select N nodes to process in parallel,
         balancing between tree exploration and exploitation.
         Note:
@@ -2085,18 +2084,15 @@ class ParallelAgent:
                     _safe_pickle_test(node_data, f"node {node.id} data")
                     node_data_list.append(node_data)
                 except Exception as e:
-                    logger.error(f"Error preparing node {node.id}: {str(e)}")
+                    logger.error(f"Error preparing node {node.id}: {e!s}")
                     raise
             else:
                 node_data_list.append(None)  # None means new draft
 
         if self.cfg.agent.get("summary", None) is not None:
             memory_summary = self.journal.generate_summary(
-                include_code=False, 
-                **{
-                    "model": self.cfg.agent.summary.model, 
-                    "temp": self.cfg.agent.summary.temp
-                }
+                include_code=False,
+                model=self.cfg.agent.summary.model, temp=self.cfg.agent.summary.temp,
             )
         else:
             memory_summary = self.journal.generate_summary(include_code=False)
@@ -2192,10 +2188,10 @@ class ParallelAgent:
 
             except TimeoutError:
                 print("Worker process timed out, couldn't get the result")
-                logger.error(f"Worker process timed out, couldn't get the result")
+                logger.error("Worker process timed out, couldn't get the result")
             except Exception as e:
-                print(f"Error processing node: {str(e)}")
-                logger.error(f"Error processing node: {str(e)}")
+                print(f"Error processing node: {e!s}")
+                logger.error(f"Error processing node: {e!s}")
                 import traceback
 
                 traceback.print_exc()
@@ -2247,7 +2243,7 @@ class ParallelAgent:
             logger.info(f"Ablation {ablation_name} completed successfully")
 
     def _aggregate_seed_eval_results(
-        self, seed_nodes: List[Node], parent_node: Node
+        self, seed_nodes: list[Node], parent_node: Node
     ) -> str:
         """Generate aggregated plots from multi-seed evaluation results.
 

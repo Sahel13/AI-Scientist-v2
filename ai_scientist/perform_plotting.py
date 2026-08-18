@@ -6,14 +6,14 @@ import shutil
 import subprocess
 import sys
 import traceback
+
 from rich import print
 
 from ai_scientist.llm import create_client, get_response_from_llm
-from ai_scientist.utils.token_tracker import token_tracker
 from ai_scientist.perform_icbinb_writeup import (
-    load_idea_text,
-    load_exp_summaries,
     filter_experiment_summaries,
+    load_exp_summaries,
+    load_idea_text,
 )
 
 MAX_FIGURES = 12
@@ -145,7 +145,7 @@ def aggregate_plots(
         os.remove(aggregator_script_path)
     if os.path.exists(figures_dir):
         shutil.rmtree(figures_dir)
-        print(f"Cleaned up previous figures directory")
+        print("Cleaned up previous figures directory")
 
     idea_text = load_idea_text(base_folder)
     exp_summaries = load_exp_summaries(base_folder)
@@ -250,7 +250,7 @@ If you believe you are done, simply say: "I am done". Otherwise, please provide 
             )
         else:
             print(
-                f"No new aggregator script was provided or it was identical. Reflection step {i+1} complete."
+                f"No new aggregator script was provided or it was identical. Reflection step {i + 1} complete."
             )
 
 

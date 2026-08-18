@@ -2,10 +2,11 @@ import json
 import logging
 import time
 
-from .utils import FunctionSpec, OutputType, opt_messages_to_list, backoff_create
-from funcy import notnone, once, select_values
 import openai
+from funcy import notnone, select_values
 from rich import print
+
+from .utils import FunctionSpec, OutputType, backoff_create, opt_messages_to_list
 
 logger = logging.getLogger("ai-scientist")
 
@@ -17,11 +18,11 @@ OPENAI_TIMEOUT_EXCEPTIONS = (
     openai.InternalServerError,
 )
 
+
 def get_ai_client(model: str, max_retries=2) -> openai.OpenAI:
     if model.startswith("ollama/"):
         client = openai.OpenAI(
-            base_url="http://localhost:11434/v1", 
-            max_retries=max_retries
+            base_url="http://localhost:11434/v1", max_retries=max_retries
         )
     else:
         client = openai.OpenAI(max_retries=max_retries)
@@ -45,7 +46,7 @@ def query(
         filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
 
     if filtered_kwargs.get("model", "").startswith("ollama/"):
-       filtered_kwargs["model"] = filtered_kwargs["model"].replace("ollama/", "")
+        filtered_kwargs["model"] = filtered_kwargs["model"].replace("ollama/", "")
 
     t0 = time.time()
     completion = backoff_create(
@@ -61,12 +62,12 @@ def query(
     if func_spec is None:
         output = choice.message.content
     else:
-        assert (
-            choice.message.tool_calls
-        ), f"function_call is empty, it is not a function call: {choice.message}"
-        assert (
-            choice.message.tool_calls[0].function.name == func_spec.name
-        ), "Function name mismatch"
+        assert choice.message.tool_calls, (
+            f"function_call is empty, it is not a function call: {choice.message}"
+        )
+        assert choice.message.tool_calls[0].function.name == func_spec.name, (
+            "Function name mismatch"
+        )
         try:
             print(f"[cyan]Raw func call response: {choice}[/cyan]")
             output = json.loads(choice.message.tool_calls[0].function.arguments)

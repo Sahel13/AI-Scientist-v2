@@ -1,13 +1,15 @@
-import os
 import json
+import os
+
 import numpy as np
-from pypdf import PdfReader
 import pymupdf
 import pymupdf4llm
+from pypdf import PdfReader
+
 from ai_scientist.llm import (
-    get_response_from_llm,
-    get_batch_responses_from_llm,
     extract_json_between_markers,
+    get_batch_responses_from_llm,
+    get_response_from_llm,
 )
 
 reviewer_system_prompt_base = (

@@ -19,7 +19,6 @@ import humanize
 
 from .interpreter import ExecutionResult
 
-
 logger = logging.getLogger("ai-scientist")
 
 
@@ -65,12 +64,18 @@ class SlurmInterpreter:
 
     @staticmethod
     def _output(result: subprocess.CompletedProcess[str]) -> str:
-        return "\n".join(part for part in [result.stdout.strip(), result.stderr.strip()] if part)
+        return "\n".join(
+            part for part in [result.stdout.strip(), result.stderr.strip()] if part
+        )
 
-    def _run_local(self, args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    def _run_local(
+        self, args: list[str], check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(args, capture_output=True, text=True, check=check)
 
-    def _ssh(self, remote_args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
+    def _ssh(
+        self, remote_args: list[str], check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
         # Pass a single, safely quoted command string to the remote shell.
         return self._run_local(["ssh", self.host, shlex.join(remote_args)], check=check)
 
@@ -78,7 +83,9 @@ class SlurmInterpreter:
         self._run_local(["rsync", "-az", f"{source}/", f"{self.host}:{remote_path}/"])
 
     def _rsync_from_remote(self, remote_path: str) -> None:
-        self._run_local(["rsync", "-az", f"{self.host}:{remote_path}/", f"{self.working_dir}/"])
+        self._run_local(
+            ["rsync", "-az", f"{self.host}:{remote_path}/", f"{self.working_dir}/"]
+        )
 
     def _result(
         self,
@@ -125,16 +132,30 @@ class SlurmInterpreter:
                 term_out.append(f"--- {log_file.name} ---\n{contents}")
 
     def _job_state(self, job_id: str) -> str | None:
-        queued = self._ssh(["squeue", "--noheader", "--jobs", job_id, "--format=%T"], check=False)
+        queued = self._ssh(
+            ["squeue", "--noheader", "--jobs", job_id, "--format=%T"], check=False
+        )
         if queued.returncode == 0 and queued.stdout.strip():
             return queued.stdout.strip().splitlines()[0]
 
         accounting = self._ssh(
-            ["sacct", "--noheader", "--allocations", "--jobs", job_id, "--format=State", "--parsable2"],
+            [
+                "sacct",
+                "--noheader",
+                "--allocations",
+                "--jobs",
+                job_id,
+                "--format=State",
+                "--parsable2",
+            ],
             check=False,
         )
         if accounting.returncode == 0:
-            states = [line.strip().split("|")[0] for line in accounting.stdout.splitlines() if line.strip()]
+            states = [
+                line.strip().split("|")[0]
+                for line in accounting.stdout.splitlines()
+                if line.strip()
+            ]
             if states:
                 return states[0]
         return None
@@ -147,7 +168,13 @@ class SlurmInterpreter:
             if state and state != last_state:
                 term_out.append(f"Slurm job {job_id} state: {state}")
                 last_state = state
-            if state and state.upper().split()[0] not in {"PENDING", "CONFIGURING", "RUNNING", "COMPLETING", "SUSPENDED"}:
+            if state and state.upper().split()[0] not in {
+                "PENDING",
+                "CONFIGURING",
+                "RUNNING",
+                "COMPLETING",
+                "SUSPENDED",
+            }:
                 return state
 
             # Do not sleep past the execution deadline.  The caller needs the
@@ -164,7 +191,9 @@ class SlurmInterpreter:
             return
         result = self._ssh(["rm", "-rf", "--", remote_dir], check=False)
         if result.returncode != 0:
-            term_out.append(f"Could not remove remote workspace {remote_dir}: {self._output(result)}")
+            term_out.append(
+                f"Could not remove remote workspace {remote_dir}: {self._output(result)}"
+            )
 
     def run(self, code: str, reset_session: bool = True) -> ExecutionResult:
         """Stage, submit, wait for, and collect one generated experiment."""
@@ -179,12 +208,15 @@ class SlurmInterpreter:
         try:
             self._ssh(["mkdir", "-p", remote_dir])
             self._rsync_to_remote(self.working_dir, remote_dir)
-            self._run_local(["rsync", "-az", str(self.template), f"{self.host}:{remote_template}"])
+            self._run_local(
+                ["rsync", "-az", str(self.template), f"{self.host}:{remote_template}"]
+            )
 
             submit = self._ssh(
                 [
                     "sbatch",
                     "--parsable",
+                    f"--chdir={remote_dir}",
                     (
                         "--export="
                         f"AI_SCIENTIST_REMOTE_WORKDIR={remote_dir},"
@@ -223,4 +255,4 @@ class SlurmInterpreter:
 
     def cleanup_session(self) -> None:
         """Provided for compatibility with the local Interpreter API."""
-        return None
+        return

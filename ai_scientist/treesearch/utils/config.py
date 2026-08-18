@@ -1,19 +1,19 @@
 """configuration and setup utils"""
 
+import logging
+from collections.abc import Hashable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Hashable, cast, Optional
+from typing import cast
 
 import coolname
 import rich
-from omegaconf import OmegaConf
-from rich.syntax import Syntax
 import shutup
+from omegaconf import OmegaConf
 from rich.logging import RichHandler
-import logging
+from rich.syntax import Syntax
 
-from . import tree_export
-from . import copytree, preproc_data, serialize
+from . import copytree, preproc_data, serialize, tree_export
 
 shutup.mute_warnings()
 logging.basicConfig(
@@ -29,7 +29,7 @@ logger.setLevel(logging.WARNING)
 @dataclass
 class ThinkingConfig:
     type: str
-    budget_tokens: Optional[int] = None
+    budget_tokens: int | None = None
 
 
 @dataclass
@@ -38,7 +38,7 @@ class StageConfig:
     temp: float
     thinking: ThinkingConfig
     betas: str
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
 
 
 @dataclass
@@ -70,8 +70,9 @@ class AgentConfig:
     type: str
     multi_seed_eval: dict[str, int]
 
-    summary: Optional[StageConfig] = None
-    select_node: Optional[StageConfig] = None
+    summary: StageConfig | None = None
+    select_node: StageConfig | None = None
+
 
 @dataclass
 class SlurmConfig:
@@ -80,7 +81,8 @@ class SlurmConfig:
     host: str
     remote_root: str
     template: str
-    poll_seconds: int = 20
+    poll_seconds: int = 300
+    postprocess_timeout: int = 300
     keep_remote: bool = True
 
 
@@ -90,7 +92,7 @@ class ExecConfig:
     agent_file_name: str
     format_tb_ipython: bool
     backend: str = "local"
-    slurm: Optional[SlurmConfig] = None
+    slurm: SlurmConfig | None = None
 
 
 @dataclass
@@ -190,9 +192,13 @@ def prep_cfg(cfg: Config):
         raise ValueError("exec.backend must be either 'local' or 'slurm'")
     if cfg.exec.backend == "slurm":
         if cfg.exec.slurm is None:
-            raise ValueError("exec.slurm must be configured when exec.backend is 'slurm'")
+            raise ValueError(
+                "exec.slurm must be configured when exec.backend is 'slurm'"
+            )
         if cfg.exec.slurm.poll_seconds <= 0:
             raise ValueError("exec.slurm.poll_seconds must be greater than zero")
+        if cfg.exec.slurm.postprocess_timeout <= 0:
+            raise ValueError("exec.slurm.postprocess_timeout must be greater than zero")
 
     return cast(Config, cfg)
 

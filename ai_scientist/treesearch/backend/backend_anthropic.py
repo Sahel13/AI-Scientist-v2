@@ -1,10 +1,9 @@
 import time
-import os
 
-from .utils import FunctionSpec, OutputType, opt_messages_to_list, backoff_create
-from funcy import notnone, once, select_values
 import anthropic
+from funcy import notnone, select_values
 
+from .utils import FunctionSpec, OutputType, backoff_create, opt_messages_to_list
 
 ANTHROPIC_TIMEOUT_EXCEPTIONS = (
     anthropic.RateLimitError,
@@ -14,9 +13,11 @@ ANTHROPIC_TIMEOUT_EXCEPTIONS = (
     anthropic.APIStatusError,
 )
 
-def get_ai_client(model : str, max_retries=2) -> anthropic.AnthropicBedrock:
+
+def get_ai_client(model: str, max_retries=2) -> anthropic.AnthropicBedrock:
     client = anthropic.AnthropicBedrock(max_retries=max_retries)
     return client
+
 
 def query(
     system_message: str | None,

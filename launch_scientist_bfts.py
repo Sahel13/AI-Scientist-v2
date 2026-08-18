@@ -1,30 +1,33 @@
-import os.path as osp
-import json
 import argparse
-import shutil
-import torch
+import json
 import os
+import os.path as osp
 import re
+import shutil
 import sys
-from datetime import datetime
-from ai_scientist.llm import create_client
-
 from contextlib import contextmanager
+from datetime import datetime
+
+import torch
+
+from ai_scientist.llm import create_client
+from ai_scientist.perform_icbinb_writeup import (
+    gather_citations,
+)
+from ai_scientist.perform_icbinb_writeup import (
+    perform_writeup as perform_icbinb_writeup,
+)
+from ai_scientist.perform_llm_review import load_paper, perform_review
+from ai_scientist.perform_plotting import aggregate_plots
+from ai_scientist.perform_vlm_review import perform_imgs_cap_ref_review
+from ai_scientist.perform_writeup import perform_writeup
+from ai_scientist.treesearch.bfts_utils import (
+    edit_bfts_config_file,
+    idea_to_markdown,
+)
 from ai_scientist.treesearch.perform_experiments_bfts_with_agentmanager import (
     perform_experiments_bfts,
 )
-from ai_scientist.treesearch.bfts_utils import (
-    idea_to_markdown,
-    edit_bfts_config_file,
-)
-from ai_scientist.perform_plotting import aggregate_plots
-from ai_scientist.perform_writeup import perform_writeup
-from ai_scientist.perform_icbinb_writeup import (
-    perform_writeup as perform_icbinb_writeup,
-    gather_citations,
-)
-from ai_scientist.perform_llm_review import perform_review, load_paper
-from ai_scientist.perform_vlm_review import perform_imgs_cap_ref_review
 from ai_scientist.utils.token_tracker import token_tracker
 
 
@@ -291,7 +294,7 @@ if __name__ == "__main__":
             small_model=args.model_citation,
         )
         for attempt in range(args.writeup_retries):
-            print(f"Writeup attempt {attempt+1} of {args.writeup_retries}")
+            print(f"Writeup attempt {attempt + 1} of {args.writeup_retries}")
             if args.writeup_type == "normal":
                 writeup_success = perform_writeup(
                     base_folder=idea_dir,
@@ -335,8 +338,9 @@ if __name__ == "__main__":
 
     print("Start cleaning up processes")
     # Kill all mp and torch processes associated with this experiment
-    import psutil
     import signal
+
+    import psutil
 
     # Get the current process and all its children
     current_process = psutil.Process()

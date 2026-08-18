@@ -1,15 +1,15 @@
-import os
-import hashlib
-import pymupdf
-import re
 import base64
-from ai_scientist.vlm import (
-    get_response_from_vlm,
-    get_batch_responses_from_vlm,
-    extract_json_between_markers,
-)
+import hashlib
+import os
+import re
+
+import pymupdf
 
 from ai_scientist.perform_llm_review import load_paper
+from ai_scientist.vlm import (
+    extract_json_between_markers,
+    get_response_from_vlm,
+)
 
 
 def encode_image_to_base64(image_data):
@@ -269,7 +269,7 @@ def extract_figure_screenshots(
                     f"figure_{fig_label_escaped}_{page_num}_{clip_rect}".encode()
                 ).hexdigest()[:10]
                 fig_filename = (
-                    f"figure_{fig_label_escaped}_Page_{page_num+1}_{fig_hash}.png"
+                    f"figure_{fig_label_escaped}_Page_{page_num + 1}_{fig_hash}.png"
                 )
                 fig_filepath = os.path.join(img_folder_path, fig_filename)
                 pix.save(fig_filepath)

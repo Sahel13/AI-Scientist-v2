@@ -26,6 +26,8 @@ exec:
     remote_root: "/path/to/your/remote/ai-scientist-runs"
     template: "job_template.private.slurm"
     poll_seconds: 20
+    # Time for copying results and local metric/plot/VLM processing after the job.
+    postprocess_timeout: 300
     keep_remote: true
 ```
 

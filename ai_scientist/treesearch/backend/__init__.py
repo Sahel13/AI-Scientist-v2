@@ -1,6 +1,7 @@
 from . import backend_anthropic, backend_openai
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 
+
 def get_ai_client(model: str, **model_kwargs):
     """
     Get the appropriate AI client based on the model string.
@@ -15,6 +16,7 @@ def get_ai_client(model: str, **model_kwargs):
         return backend_anthropic.get_ai_client(model=model, **model_kwargs)
     else:
         return backend_openai.get_ai_client(model=model, **model_kwargs)
+
 
 def query(
     system_message: PromptType | None,

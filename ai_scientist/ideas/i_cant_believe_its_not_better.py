@@ -1,20 +1,20 @@
+import time  # Add at the top with other imports
 import warnings
 from datetime import datetime
+
 import numpy as np
-import time  # Add at the top with other imports
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
 import os
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torchvision.transforms as T
-from torch.utils.data import DataLoader
 
+import torch
+import torchvision.transforms as T
 from datasets import load_dataset
-from torchvision.models import resnet50
 from huggingface_hub import login
+from torch import nn, optim
+from torch.utils.data import DataLoader
+from torchvision.models import resnet50
 
 login(token=os.environ["HF_TOKEN"])
 
@@ -75,9 +75,9 @@ math_examples = load_dataset(
 ## PRE-TRAINED MODELS REFERENCE
 
 ## Example: load a pre-trained model, use it to extract features from images, and calculate the similarity score between two images
-from transformers import pipeline
-from PIL import Image
 import requests
+from PIL import Image
+from transformers import pipeline
 
 # Set device to GPU if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -366,7 +366,7 @@ for epoch in range(NUM_EPOCHS):
                 perf_string = perf_string.replace(".", "_")
                 checkpoint_path = os.path.join(
                     checkpoint_dir,
-                    f"model_epoch{epoch+1}_step{step+1}_val{perf_string}.pt",
+                    f"model_epoch{epoch + 1}_step{step + 1}_val{perf_string}.pt",
                 )
                 torch.save(
                     {
@@ -387,7 +387,7 @@ for epoch in range(NUM_EPOCHS):
     # Reset epoch timer and print epoch summary
     epoch_time = time.time() - epoch_start_time
     epoch_start_time = time.time()
-    print(f"Epoch {epoch+1} completed in {epoch_time:.2f} seconds")
+    print(f"Epoch {epoch + 1} completed in {epoch_time:.2f} seconds")
 
     # Print total training time at the end
     total_time = time.time() - start_time

@@ -1,10 +1,8 @@
-from functools import wraps
-from typing import Dict, Optional, List
-import tiktoken
-from collections import defaultdict
 import asyncio
-from datetime import datetime
 import logging
+from collections import defaultdict
+from datetime import datetime
+from functools import wraps
 
 
 class TokenTracker:
@@ -90,7 +88,7 @@ class TokenTracker:
             }
         )
 
-    def get_interactions(self, model: Optional[str] = None) -> Dict[str, List[Dict]]:
+    def get_interactions(self, model: str | None = None) -> dict[str, list[dict]]:
         """Get all interactions, optionally filtered by model."""
         if model:
             return {model: self.interactions[model]}
@@ -124,7 +122,7 @@ class TokenTracker:
 
         return prompt_cost + cached_cost + completion_cost
 
-    def get_summary(self) -> Dict[str, Dict[str, int]]:
+    def get_summary(self) -> dict[str, dict[str, int]]:
         # return dict(self.token_counts)
         """Get summary of token usage and costs for all models."""
         summary = {}
@@ -157,7 +155,10 @@ def track_token_usage(func):
         model = result.model
         timestamp = result.created
 
-        if hasattr(result, "usage") and result.usage.completion_tokens_details is not None:
+        if (
+            hasattr(result, "usage")
+            and result.usage.completion_tokens_details is not None
+        ):
             token_tracker.add_tokens(
                 model,
                 result.usage.prompt_tokens,
@@ -195,7 +196,10 @@ def track_token_usage(func):
         logging.info("args: ", args)
         logging.info("kwargs: ", kwargs)
 
-        if hasattr(result, "usage") and result.usage.completion_tokens_details is not None:
+        if (
+            hasattr(result, "usage")
+            and result.usage.completion_tokens_details is not None
+        ):
             token_tracker.add_tokens(
                 model,
                 result.usage.prompt_tokens,

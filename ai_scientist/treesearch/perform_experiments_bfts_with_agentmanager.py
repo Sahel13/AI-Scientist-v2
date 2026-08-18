@@ -1,11 +1,10 @@
 import atexit
-import logging
-import shutil
 import json
+import logging
 import pickle
-from . import backend
-from .journal import Journal, Node
-from .journal2report import journal2report
+import shutil
+from pathlib import Path
+
 from rich.columns import Columns
 from rich.console import Group
 from rich.live import Live
@@ -18,15 +17,15 @@ from rich.progress import (
     TextColumn,
     TimeRemainingColumn,
 )
-from rich.text import Text
 from rich.status import Status
+from rich.text import Text
 from rich.tree import Tree
-from .utils.config import load_task_desc, prep_agent_workspace, save_run, load_cfg
-from .agent_manager import AgentManager
-from pathlib import Path
-from .agent_manager import Stage
-from .log_summarization import overall_summarize
 
+from . import backend
+from .agent_manager import AgentManager
+from .journal import Journal, Node
+from .log_summarization import overall_summarize
+from .utils.config import load_cfg, load_task_desc, prep_agent_workspace, save_run
 
 logger = logging.getLogger("ai-scientist")
 
@@ -117,14 +116,10 @@ def perform_experiments_bfts(config_path: str):
                     ) as f:
                         json.dump(summary, f, indent=2)
 
-
             if cfg.agent.get("summary", None) is not None:
                 current_findings = journal.generate_summary(
-                    include_code=False, 
-                    **{
-                        "model": cfg.agent.summary.model, 
-                        "temp": cfg.agent.summary.temp
-                    }
+                    include_code=False,
+                    model=cfg.agent.summary.model, temp=cfg.agent.summary.temp,
                 )
             else:
                 current_findings = journal.generate_summary(include_code=False)
@@ -137,11 +132,7 @@ def perform_experiments_bfts(config_path: str):
                 "total_nodes": len(journal.nodes),
                 "buggy_nodes": len(journal.buggy_nodes),
                 "good_nodes": len(journal.good_nodes),
-                "best_metric": (
-                    str(best_metric.metric)
-                    if best_metric
-                    else "None"
-                ),
+                "best_metric": (str(best_metric.metric) if best_metric else "None"),
                 "current_findings": current_findings,
             }
 
@@ -170,9 +161,9 @@ def perform_experiments_bfts(config_path: str):
             tree = Tree("[bold blue]No results yet")
 
         file_paths = [
-            f"Result visualization:\n[yellow]▶ {str((cfg.log_dir / 'tree_plot.html'))}",
-            f"Agent workspace directory:\n[yellow]▶ {str(cfg.workspace_dir)}",
-            f"Experiment log directory:\n[yellow]▶ {str(cfg.log_dir)}",
+            f"Result visualization:\n[yellow]▶ {(cfg.log_dir / 'tree_plot.html')!s}",
+            f"Agent workspace directory:\n[yellow]▶ {cfg.workspace_dir!s}",
+            f"Experiment log directory:\n[yellow]▶ {cfg.log_dir!s}",
         ]
 
         stage_info = [
@@ -249,7 +240,7 @@ def perform_experiments_bfts(config_path: str):
         with open(ablation_summary_path, "w") as ablation_file:
             json.dump(ablation_summary, ablation_file, indent=2)
 
-        print(f"Summary reports written to files:")
+        print("Summary reports written to files:")
         print(f"- Draft summary: {draft_summary_path}")
         print(f"- Baseline summary: {baseline_summary_path}")
         print(f"- Research summary: {research_summary_path}")

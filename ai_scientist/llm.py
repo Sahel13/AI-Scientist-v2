@@ -2,11 +2,12 @@ import json
 import os
 import re
 from typing import Any
-from ai_scientist.utils.token_tracker import track_token_usage
 
 import anthropic
 import backoff
 import openai
+
+from ai_scientist.utils.token_tracker import track_token_usage
 
 MAX_NUM_TOKENS = 4096
 
@@ -58,13 +59,10 @@ AVAILABLE_LLMS = [
     "ollama/qwen3:8b",
     "ollama/qwen3:32b",
     "ollama/qwen3:235b",
-
     "ollama/qwen2.5vl:8b",
     "ollama/qwen2.5vl:32b",
-
     "ollama/qwen3-coder:70b",
     "ollama/qwen3-coder:480b",
-
     # Deepseek models via Ollama
     "ollama/deepseek-r1:8b",
     "ollama/deepseek-r1:32b",
@@ -167,7 +165,7 @@ def get_batch_responses_from_llm(
         new_msg_history = [
             new_msg_history + [{"role": "assistant", "content": c}] for c in content
         ]
-    elif 'gemini' in model:
+    elif "gemini" in model:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = client.chat.completions.create(
             model=model,
@@ -204,7 +202,7 @@ def get_batch_responses_from_llm(
         print()
         print("*" * 20 + " LLM START " + "*" * 20)
         for j, msg in enumerate(new_msg_history[0]):
-            print(f'{j}, {msg["role"]}: {msg["content"]}')
+            print(f"{j}, {msg['role']}: {msg['content']}")
         print(content)
         print("*" * 21 + " LLM END " + "*" * 21)
         print()
@@ -250,7 +248,7 @@ def make_llm_call(client, model, temperature, system_message, prompt):
             n=1,
             seed=0,
         )
-    
+
     else:
         raise ValueError(f"Model {model} not supported.")
 
@@ -324,18 +322,7 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-    elif "gpt" in model:
-        new_msg_history = msg_history + [{"role": "user", "content": msg}]
-        response = make_llm_call(
-            client,
-            model,
-            temperature,
-            system_message=system_message,
-            prompt=new_msg_history,
-        )
-        content = response.choices[0].message.content
-        new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-    elif "o1" in model or "o3" in model:
+    elif "gpt" in model or "o1" in model or "o3" in model:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = make_llm_call(
             client,
@@ -376,28 +363,32 @@ def get_response_from_llm(
                 stop=None,
             )
             content = response.choices[0].message.content
-        except Exception as e:
+        except Exception:
             # Fallback to direct API call if OpenAI client doesn't work with HuggingFace
             import requests
+
             headers = {
                 "Authorization": f"Bearer {os.environ['HUGGINGFACE_API_KEY']}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
             }
             payload = {
                 "inputs": {
                     "system": system_message,
-                    "messages": [{"role": m["role"], "content": m["content"]} for m in new_msg_history]
+                    "messages": [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in new_msg_history
+                    ],
                 },
                 "parameters": {
                     "temperature": temperature,
                     "max_new_tokens": MAX_NUM_TOKENS,
-                    "return_full_text": False
-                }
+                    "return_full_text": False,
+                },
             }
             response = requests.post(
                 "https://api-inference.huggingface.co/models/agentica-org/DeepCoder-14B-Preview",
                 headers=headers,
-                json=payload
+                json=payload,
             )
             if response.status_code == 200:
                 content = response.json()["generated_text"]
@@ -420,7 +411,7 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
-    elif 'gemini' in model:
+    elif "gemini" in model:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         response = client.chat.completions.create(
             model=model,
@@ -441,7 +432,7 @@ def get_response_from_llm(
         print()
         print("*" * 20 + " LLM START " + "*" * 20)
         for j, msg in enumerate(new_msg_history):
-            print(f'{j}, {msg["role"]}: {msg["content"]}')
+            print(f"{j}, {msg['role']}: {msg['content']}")
         print(content)
         print("*" * 21 + " LLM END " + "*" * 21)
         print()
@@ -449,7 +440,7 @@ def get_response_from_llm(
     return content, new_msg_history
 
 
-def extract_json_between_markers(llm_output: str) -> dict | None: 
+def extract_json_between_markers(llm_output: str) -> dict | None:
     # Regular expression pattern to find JSON content between ```json and ```
     json_pattern = r"```json(.*?)```"
     matches = re.findall(json_pattern, llm_output, re.DOTALL)
@@ -495,10 +486,7 @@ def create_client(model) -> tuple[Any, str]:
             api_key=os.environ.get("OLLAMA_API_KEY", ""),
             base_url="http://localhost:11434/v1",
         ), model
-    elif "gpt" in model:
-        print(f"Using OpenAI API with model {model}.")
-        return openai.OpenAI(), model
-    elif "o1" in model or "o3" in model:
+    elif "gpt" in model or "o1" in model or "o3" in model:
         print(f"Using OpenAI API with model {model}.")
         return openai.OpenAI(), model
     elif model == "deepseek-coder-v2-0724":
@@ -531,7 +519,7 @@ def create_client(model) -> tuple[Any, str]:
             ),
             "meta-llama/llama-3.1-405b-instruct",
         )
-    elif 'gemini' in model:
+    elif "gemini" in model:
         print(f"Using OpenAI API with {model}.")
         return (
             openai.OpenAI(
