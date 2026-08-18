@@ -123,6 +123,8 @@ celerybeat.pid
 
 # Environments
 .env
+bfts_config.private.yaml
+job_template.private.slurm
 .venv
 .venv_jax
 env/

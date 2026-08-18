@@ -28,6 +28,12 @@ from ai_scientist.perform_vlm_review import perform_imgs_cap_ref_review
 from ai_scientist.utils.token_tracker import token_tracker
 
 
+def default_bfts_config() -> str:
+    """Prefer a private local override without changing the shared default."""
+    private_config = "bfts_config.private.yaml"
+    return private_config if osp.isfile(private_config) else "bfts_config.yaml"
+
+
 def print_time():
     print(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -53,6 +59,15 @@ def parse_arguments():
         type=str,
         default="ideas/i_cant_believe_its_not_better.json",
         help="Path to a JSON file containing pregenerated ideas",
+    )
+    parser.add_argument(
+        "--bfts-config",
+        type=str,
+        default=default_bfts_config(),
+        help=(
+            "Base BFTS configuration file; defaults to bfts_config.private.yaml "
+            "when present, otherwise bfts_config.yaml."
+        ),
     )
     parser.add_argument(
         "--load_code",
@@ -246,7 +261,7 @@ if __name__ == "__main__":
     with open(idea_path_json, "w") as f:
         json.dump(ideas[args.idea_idx], f, indent=4)
 
-    config_path = "bfts_config.yaml"
+    config_path = args.bfts_config
     idea_config_path = edit_bfts_config_file(
         config_path,
         idea_dir,

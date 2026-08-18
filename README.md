@@ -60,6 +60,51 @@ pip install -r requirements.txt
 
 Installation usually takes no more than one hour.
 
+### macOS with Apple Container (CPU orchestration)
+
+This repository also includes a CPU-only [`Containerfile`](Containerfile) and
+[`container/run.sh`](container/run.sh) for Apple's `container` runtime. The
+image is an ARM64 Linux orchestration environment: it does not install CUDA
+and is intended for an HPC adapter that submits generated experiments to a
+remote Slurm cluster.
+
+Apple Container currently requires an Apple-silicon Mac running macOS 26 or
+later. Install and start it using the instructions in the [Apple Container
+repository](https://github.com/apple/container), then run:
+
+```bash
+container system start
+container build --tag ai-scientist:cpu --file Containerfile .
+cp .env.example .env  # add the API keys you need; .env is git-ignored
+
+# Open a shell in the container.
+./container/run.sh
+
+# Or run the existing entry points directly.
+./container/run.sh python ai_scientist/perform_ideation_temp_free.py \
+  --workshop-file ai_scientist/ideas/my_research_topic.md \
+  --model gpt-4o-2024-05-13
+./container/run.sh python launch_scientist_bfts.py \
+  --load_ideas ai_scientist/ideas/my_research_topic.json
+```
+
+The runner forwards the host SSH agent for Slurm submission, optionally mounts
+the host SSH config and `known_hosts`, and does not mount private keys. Prefer
+`./container/run-hpc.sh`, which creates a temporary agent containing only the
+dedicated HPC key before it starts the container. The source tree is read-only
+inside the container; `experiments/`, `slurm_logs/`, `cache/`, and the ideas
+directory are persisted on the host. Adjust the
+orchestration resources with `AI_SCIENTIST_CONTAINER_CPUS` and
+`AI_SCIENTIST_CONTAINER_MEMORY` if needed.
+
+Set `exec.backend: slurm` in the BFTS configuration to execute generated
+experiments on a remote Slurm cluster. The local/container process remains the
+controller and handles metric parsing, plotting, and paper generation. See
+[the Slurm adapter guide](docs/slurm-adapter.md).
+
+See the concise [macOS Apple Container guide](docs/macos-container.md) for the
+full setup and dedicated HPC SSH-agent instructions.
+
 ### Supported Models and API Keys
 
 #### OpenAI Models
@@ -126,6 +171,11 @@ Using the JSON file generated in the previous ideation step, you can now launch 
 
 Specify the models used for the write-up and review phases via command-line arguments.
 The configuration for the best-first tree search (BFTS) is located in `bfts_config.yaml`. Adjust parameters in this file as needed.
+
+To keep a personal Slurm setup out of Git, create `bfts_config.private.yaml`
+from `bfts_config.slurm.example.yaml`. The launcher selects that file
+automatically when it is present; otherwise it uses the local default. See
+[the Slurm adapter guide](docs/slurm-adapter.md) for the one-time setup.
 
 Key tree search configuration parameters in `bfts_config.yaml`:
 

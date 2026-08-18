@@ -1180,6 +1180,12 @@ class ParallelAgent:
             logger.info(f"Limiting workers to {self.num_workers} to match GPU count")
 
         self.timeout = self.cfg.exec.timeout
+        # Slurm execution needs to poll once more and transfer results after
+        # its execution deadline.  Keep that cleanup within the worker's
+        # future deadline instead of discarding a worker that is finishing.
+        if self.cfg.exec.backend == "slurm":
+            assert self.cfg.exec.slurm is not None
+            self.timeout += self.cfg.exec.slurm.poll_seconds
         self.executor = ProcessPoolExecutor(max_workers=self.num_workers)
         self._is_shutdown = False
         # Define the metric once at initialization
@@ -1456,14 +1462,29 @@ class ParallelAgent:
             stage_name=stage_name,
         )
 
-        # Create interpreter instance for worker process
-        print("Creating Interpreter")
-        process_interpreter = Interpreter(
+        # Parse metrics and create plots locally after the experiment data is
+        # copied back from Slurm. Only the generated GPU experiment itself is
+        # submitted to the remote cluster.
+        print("Creating local Interpreter")
+        local_interpreter = Interpreter(
             working_dir=workspace,
             timeout=cfg.exec.timeout,
             format_tb_ipython=cfg.exec.format_tb_ipython,
             agent_file_name=cfg.exec.agent_file_name,
         )
+        if cfg.exec.backend == "slurm":
+            from .slurm_interpreter import SlurmInterpreter
+
+            print("Creating Slurm Interpreter")
+            experiment_interpreter = SlurmInterpreter(
+                working_dir=workspace,
+                timeout=cfg.exec.timeout,
+                format_tb_ipython=cfg.exec.format_tb_ipython,
+                agent_file_name=cfg.exec.agent_file_name,
+                slurm_config=cfg.exec.slurm,
+            )
+        else:
+            experiment_interpreter = local_interpreter
 
         try:
             print(f"stage_name: {stage_name}")
@@ -1523,8 +1544,8 @@ class ParallelAgent:
 
             # Execute and parse results
             print("Running code")
-            exec_result = process_interpreter.run(child_node.code, True)
-            process_interpreter.cleanup_session()
+            exec_result = experiment_interpreter.run(child_node.code, True)
+            experiment_interpreter.cleanup_session()
 
             print("Parsing execution results")
             worker_agent.parse_exec_result(
@@ -1594,10 +1615,10 @@ class ParallelAgent:
                     child_node.parse_metrics_code = parse_metrics_code
                 try:
                     # Execute the parsing code
-                    metrics_exec_result = process_interpreter.run(
+                    metrics_exec_result = local_interpreter.run(
                         parse_metrics_code, True
                     )
-                    process_interpreter.cleanup_session()
+                    local_interpreter.cleanup_session()
                     child_node.parse_term_out = metrics_exec_result.term_out
                     child_node.parse_exc_type = metrics_exec_result.exc_type
                     child_node.parse_exc_info = metrics_exec_result.exc_info
@@ -1692,8 +1713,8 @@ class ParallelAgent:
                             plotting_code = worker_agent._generate_plotting_code(
                                 child_node, working_dir, plot_code_from_prev_stage
                             )
-                        plot_exec_result = process_interpreter.run(plotting_code, True)
-                        process_interpreter.cleanup_session()
+                        plot_exec_result = local_interpreter.run(plotting_code, True)
+                        local_interpreter.cleanup_session()
                         child_node.plot_exec_result = plot_exec_result
                         if child_node.plot_exc_type and retry_count < 3:
                             print(

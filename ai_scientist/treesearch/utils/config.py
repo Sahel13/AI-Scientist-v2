@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Hashable, cast, Literal, Optional
+from typing import Hashable, cast, Optional
 
 import coolname
 import rich
@@ -74,10 +74,23 @@ class AgentConfig:
     select_node: Optional[StageConfig] = None
 
 @dataclass
+class SlurmConfig:
+    """Configuration for running generated experiments through Slurm."""
+
+    host: str
+    remote_root: str
+    template: str
+    poll_seconds: int = 20
+    keep_remote: bool = True
+
+
+@dataclass
 class ExecConfig:
     timeout: int
     agent_file_name: str
     format_tb_ipython: bool
+    backend: str = "local"
+    slurm: Optional[SlurmConfig] = None
 
 
 @dataclass
@@ -172,6 +185,14 @@ def prep_cfg(cfg: Config):
 
     if cfg.agent.type not in ["parallel", "sequential"]:
         raise ValueError("agent.type must be either 'parallel' or 'sequential'")
+
+    if cfg.exec.backend not in ["local", "slurm"]:
+        raise ValueError("exec.backend must be either 'local' or 'slurm'")
+    if cfg.exec.backend == "slurm":
+        if cfg.exec.slurm is None:
+            raise ValueError("exec.slurm must be configured when exec.backend is 'slurm'")
+        if cfg.exec.slurm.poll_seconds <= 0:
+            raise ValueError("exec.slurm.poll_seconds must be greater than zero")
 
     return cast(Config, cfg)
 
