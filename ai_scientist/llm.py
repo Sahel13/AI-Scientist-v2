@@ -12,8 +12,7 @@ from ai_scientist.utils.token_tracker import track_token_usage
 MAX_NUM_TOKENS = 4096
 
 AVAILABLE_LLMS = [
-    "claude-3-5-sonnet-20240620",
-    "claude-3-5-sonnet-20241022",
+    "claude-sonnet-5",
     # OpenAI models
     "gpt-4o-mini",
     "gpt-4o-mini-2024-07-18",
@@ -36,18 +35,6 @@ AVAILABLE_LLMS = [
     "deepcoder-14b",
     # Llama 3 models
     "llama3.1-405b",
-    # Anthropic Claude models via Amazon Bedrock
-    "bedrock/anthropic.claude-3-sonnet-20240229-v1:0",
-    "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
-    "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "bedrock/anthropic.claude-3-haiku-20240307-v1:0",
-    "bedrock/anthropic.claude-3-opus-20240229-v1:0",
-    # Anthropic Claude models Vertex AI
-    "vertex_ai/claude-3-opus@20240229",
-    "vertex_ai/claude-3-5-sonnet@20240620",
-    "vertex_ai/claude-3-5-sonnet@20241022",
-    "vertex_ai/claude-3-sonnet@20240229",
-    "vertex_ai/claude-3-haiku@20240307",
     # Google Gemini models
     "gemini-2.0-flash",
     "gemini-2.5-flash-preview-04-17",
@@ -472,14 +459,6 @@ def create_client(model) -> tuple[Any, str]:
     if model.startswith("claude-"):
         print(f"Using Anthropic API with model {model}.")
         return anthropic.Anthropic(), model
-    elif model.startswith("bedrock") and "claude" in model:
-        client_model = model.split("/")[-1]
-        print(f"Using Amazon Bedrock with model {client_model}.")
-        return anthropic.AnthropicBedrock(), client_model
-    elif model.startswith("vertex_ai") and "claude" in model:
-        client_model = model.split("/")[-1]
-        print(f"Using Vertex AI with model {client_model}.")
-        return anthropic.AnthropicVertex(), client_model
     elif model.startswith("ollama/"):
         print(f"Using Ollama with model {model}.")
         return openai.OpenAI(

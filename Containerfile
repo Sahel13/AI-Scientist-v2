@@ -31,8 +31,7 @@ RUN python -m pip install --upgrade pip \
     && python -m pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
         torch torchvision \
-    && python -m pip install --no-cache-dir -r /tmp/requirements.txt \
-    && python -m pip install --no-cache-dir "anthropic[bedrock]"
+    && python -m pip install --no-cache-dir -r /tmp/requirements.txt
 
 WORKDIR /workspace/AI-Scientist-v2
 
